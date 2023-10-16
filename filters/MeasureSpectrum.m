@@ -1,16 +1,18 @@
 clc, clear, close all
 
-% Take measurements with the PR670
+% Take measurements with the PR655/670
 
 % Spectral Resolution: 3.12 nm / pixel
 
 %%
 
-retval = PR670init('COM7');
+% retval = PR670init('COM7');
+retval = PR655init('COM7');
 
 %%
 S_SPD = [380,1,401]; 
-SPD = PR670measspd(S_SPD);
+% SPD = PR670measspd(S_SPD);
+SPD = PR655measspd(S_SPD);
 
 %%
 figure, hold on

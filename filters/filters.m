@@ -1,6 +1,8 @@
-clear, clc, close all
+clear, 
+%clc, 
+close all
 
-saveFigs = false;
+saveFigs = true;
 
 %% Load data
 
@@ -10,9 +12,14 @@ data = readtable('C:\Users\cege-user\Documents\PMO\filters\CORRECT ORDER GELS ME
 lightSource = readtable('C:\Users\cege-user\Documents\PMO\filters\3200k AND 5600k REFERENCE SOURCES SPECTRUM - DBR V1.xlsx',...
     'VariableNamingRule','preserve');
 
-testingRoomWall_SPD     = load("SpectralMeasurement231011-114850.mat",'SPD');
+% testingRoomWall_SPD     = load("SpectralMeasurement231011-114850.mat",'SPD');
+% testingRoomWall_SPD     = testingRoomWall_SPD.SPD;
+% testingRoomWall_S_PD    = load("SpectralMeasurement231011-114850.mat",'S_SPD');
+% testingRoomWall_S_PD    = testingRoomWall_S_PD.S_SPD;
+
+testingRoomWall_SPD     = load("SpectralMeasurement231016-162128.mat",'SPD');
 testingRoomWall_SPD     = testingRoomWall_SPD.SPD;
-testingRoomWall_S_PD    = load("SpectralMeasurement231011-114850.mat",'S_SPD');
+testingRoomWall_S_PD    = load("SpectralMeasurement231016-162128.mat",'S_SPD');
 testingRoomWall_S_PD    = testingRoomWall_S_PD.S_SPD;
 
 %% Normalise and plot SPDs
@@ -62,21 +69,21 @@ SPD = [SPD,...
 % Take into account the light source, 
 % and use the back wall as a test reflector
 
-% SPD = testingRoomWall_SPD.*SPD;
-% 
-% figure, hold on
-% plot(SPD)
-% plot(SPD(:,195),'k','LineWidth',2)
-% axis tight
-
-load spd_houser
-
-SPD = SplineSpd(S_houser,spd_houser(:,22),S_SPD).*SPD;
+SPD = testingRoomWall_SPD.*SPD;
 
 figure, hold on
 plot(SPD)
 plot(SPD(:,195),'k','LineWidth',2)
 axis tight
+
+% load spd_houser
+% 
+% SPD = SplineSpd(S_houser,spd_houser(:,22),S_SPD).*SPD;
+% 
+% figure, hold on
+% plot(SPD)
+% plot(SPD(:,195),'k','LineWidth',2)
+% axis tight
 
 %% Compute CIE xy_1931
 
@@ -288,5 +295,5 @@ data.Var1(filterInd+1)
 data.Var4(filterInd+1)
 data.Var5(filterInd+1)
 
-
+%%
 
