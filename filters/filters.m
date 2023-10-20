@@ -1,8 +1,8 @@
-clear, 
-%clc, 
+clear,
+clc,
 close all
 
-saveFigs = true;
+saveFigs = false;
 
 %% Load data
 
@@ -47,39 +47,49 @@ if normaliseByLightSource
 
     figure, hold on
     plot(SPD)
-    plot(SPD(:,195),'k','LineWidth',2)
+    % plot(SPD(:,195),'k','LineWidth',2)
     axis tight
 end
+
+%% Exclude SPDs that we don't have access to
+
+SPD = SPD(:,        ~strcmp('E COLOR',table2array(data(2:end,4))) & ~strcmp('GAM',table2array(data(2:end,4))));
+data_mod = data(    ~strcmp('E COLOR',table2array(data(:    ,4))) & ~strcmp('GAM',table2array(data(:    ,4))),:);
+% data_mod = data;
+
+figure, hold on
+plot(SPD)
+axis tight
 
 %%
 
 SPD = [SPD,...
-    SPD.*SPD(:,48),... % light grey
-    SPD.*SPD(:,49),... % pale grey
-    SPD.*SPD(:,50),... % medium grey
-    SPD.*SPD(:,530)]; % neutral grey
+    SPD.*SPD(:,find(strcmp('Light Grey',table2array(data_mod(:,1))))-1),... % light grey
+    SPD.*SPD(:,find(strcmp('Pale Grey',table2array(data_mod(:,1))))-1),... % pale grey
+    SPD.*SPD(:,find(strcmp('Medium Grey',table2array(data_mod(:,1))))-1),... % medium grey
+    SPD.*SPD(:,find(strcmp('Neutral Grey',table2array(data_mod(:,1))))-1)]; % neutral grey
 
-% figure, 
+% figure,
 % % plot(SToWls(S_SPD),SPD);
 % plot(SToWls(S_SPD),SPD(:,1:100)); % subset, easier to see
 % xlabel('Wavelength (nm)')
 % ylabel('Transmisson')
 
 %% Compute effect in testing room
-% Take into account the light source, 
+% Take into account the light source,
 % and use the back wall as a test reflector
 
 SPD = testingRoomWall_SPD.*SPD;
 
 figure, hold on
 plot(SPD)
-plot(SPD(:,195),'k','LineWidth',2)
+plot(testingRoomWall_SPD,'k','LineWidth',2)
 axis tight
 
 % load spd_houser
-% 
+%
 % SPD = SplineSpd(S_houser,spd_houser(:,22),S_SPD).*SPD;
-% 
+%
 % figure, hold on
 % plot(SPD)
 % plot(SPD(:,195),'k','LineWidth',2)
@@ -90,25 +100,29 @@ axis tight
 load T_xyz1931.mat T_xyz1931 S_xyz1931 % Requires PsychToolbox
 
 SPDint = SplineSpd(S_SPD,SPD,S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
+testingRoomWall_SPDint = SplineSpd(S_SPD,testingRoomWall_SPD,S_xyz1931);
 
-% figure, 
+% figure,
 % % plot(SToWls(S_SPD),SPD);
 % plot(SToWls(S_xyz1931),SPDint(:,1:100)); % subset, easier to see
 % xlabel('Wavelength (nm)')
 % ylabel('Transmisson')
 
 XYZ = T_xyz1931*SPDint;
-xyY = XYZToxyY(XYZ);
+xyY = XYZToxyY(XYZ); % Note, Y is not normalised here
+
+testingRoomWall_XYZ = T_xyz1931*testingRoomWall_SPDint;
+testingRoomWall_xyY = XYZToxyY(testingRoomWall_XYZ); % Note, Y is not normalised here
 
 % Compute sRGB (for plotting)
-sRGBlin = XYZToSRGBPrimary(XYZ./max(XYZ(2,:))); % TODO Consider what the implied white point is
+sRGBlin = XYZToSRGBPrimary(XYZ./testingRoomWall_XYZ(2)); % TODO Consider what the implied white point is
 sRGB = uint8(SRGBGammaCorrect(sRGBlin,0)');
 
-figure,
+figure(421)
 DrawChromaticity
 scatter3(xyY(1,:),xyY(2,:),xyY(3,:),...
     [],double(sRGB)/255,'filled','MarkerEdgeColor','k')
-daspect([1,1,200])
+daspect([1,1,0.3])
 xlim([0,0.8])
 ylim([0,0.9])
 zlabel('Y_{1931}')
@@ -158,10 +172,10 @@ end
 
 %% CIELUV
 
-Luv = XYZToLuv(XYZ,XYZ(:,195)); % taking the clear filter as the white point - right decision? (TODO)
-Lab = XYZToLab(XYZ,XYZ(:,195));
+Luv = XYZToLuv(XYZ,testingRoomWall_XYZ); 
+Lab = XYZToLab(XYZ,testingRoomWall_XYZ);
 
-figure,
+figure(420), hold on
 scatter3(Luv(2,:),Luv(3,:),Luv(1,:),...
     [],double(sRGB)/255,'filled','MarkerEdgeColor','k')
 % zlim([60,70])
@@ -200,7 +214,7 @@ T_Y = 683*T_xyzJuddVos(2,:);
 T_Y = SplineCmf(S_xyzJuddVos,T_Y,S_cones_sp);
 
 LMS     = T_cones_sp * SplineSpd(S_SPD,SPD,S_cones_sp);
-bgLMS   = mean(LMS,2); % TODO Replace this
+bgLMS   = T_cones_sp * SplineSpd(S_SPD,testingRoomWall_SPD,S_cones_sp);
 LMSinc = LMS - bgLMS;
 
 [M_ConeIncToDKL,LMLumWeights] = ComputeDKL_M(bgLMS,T_cones_sp,T_Y);
@@ -237,40 +251,36 @@ end
 
 % Let's start with just picking from CIELUV, for simplicity
 
-radius = 70;
-Lstar = 60;
+for Lstar = 65 
+    radius = 45; %[35,45,55]
+    % Lstar = 65; %[50,65,80]
 
-requestedLocations = [Lstar,0,0;...
-    Lstar,radius,0;...
-    Lstar,0,radius;...
-    Lstar,-radius,0;...
-    Lstar,0,-radius];
+    nPoints = 8;
+    requestedLocations = zeros(nPoints,3);
 
+    requestedLocations(:,1) = ones(nPoints,1)*Lstar;
+    [requestedLocations(:,2),requestedLocations(:,3)] = pol2cart(0:2*pi/nPoints:2*pi-(2*pi/nPoints),radius);
+    requestedLocations(end+1,:) = [Lstar,0,0];
 
-nPoints = 12;
-requestedLocations = zeros(nPoints,3);
+    figure(422), hold on
+    scatter3(requestedLocations(:,2),requestedLocations(:,3),requestedLocations(:,1),'k')
 
-requestedLocations(:,1) = ones(nPoints,1)*Lstar;
-[requestedLocations(:,2),requestedLocations(:,3)] = pol2cart(0:2*pi/nPoints:2*pi-(2*pi/nPoints),radius);
-requestedLocations(end+1,:) = [Lstar,0,0];    
+    closestInd = zeros(size(requestedLocations,1),1);
 
-figure,  hold on
-scatter3(requestedLocations(:,2),requestedLocations(:,3),requestedLocations(:,1))
+    for i = 1:length(closestInd)
+        [~,closestInd(i)] = min(sqrt(sum((requestedLocations(i,:)'-Luv).^2)));
+    end
 
-closestInd = zeros(size(requestedLocations,1),1);
+    scatter3(Luv(2,closestInd),Luv(3,closestInd),Luv(1,closestInd),...
+        [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
+    daspect([1,1,1])
 
-for i = 1:length(closestInd)
-    [~,closestInd(i)] = min(sqrt(sum((requestedLocations(i,:)'-Luv).^2)));
+    xlabel('u*')
+    ylabel('v*')
+    view(2)
+    title('CIELuv')
+    axis equal
 end
-
-scatter3(Luv(2,closestInd),Luv(3,closestInd),Luv(1,closestInd),...
-    [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
-daspect([1,1,1])
-
-xlabel('u*')
-ylabel('v*')
-view(2)
-title('CIELuv')
 
 % Which filter(s) are those?
 
@@ -280,20 +290,123 @@ for j = 1:length(closestInd)
     % plot(SToWls(S_SPD),SPD(:,i),'Color',double(sRGB(i,:))/255)
     plot3(SToWls(S_SPD),SPD(:,i),ones(size(SPD(:,i)))*i,...
         'Color',double(sRGB(i,:))/255)
+    % plot3(SToWls(S_SPD),SPD(:,mod(i,size(data_mod,1))),ones(size(SPD(:,i)))*i,...
+    %     'Color',double(sRGB(i,:))/255)
 end
 xlabel('Wavelength (nm)')
 ylabel('Transmisson')
 axis tight
 title('SPD')
 
+NDfilterInd = floor(closestInd/size(data_mod,1))
+filterInd = mod(closestInd,size(data_mod,1));
 
+data_mod.Var1(filterInd+1)
+data_mod.Var4(filterInd+1)
+data_mod.Var5(filterInd+1)
 
-NDfilterInd = floor(closestInd/size(SPD_raw,1)) - 1
-filterInd = mod(closestInd,size(SPD_raw,1));
+legend(data_mod.Var1(filterInd+1))
 
-data.Var1(filterInd+1)
-data.Var4(filterInd+1)
-data.Var5(filterInd+1)
+%% Screen measurements
 
-%%
+screenSPD = readmatrix("../displayCharacterization/measurements/data_init_0.csv");
+S_screenSPD = [384,4,100]; % This is slightly wacky - it should have a value at 380, but it seems to get lost somewhere along the conversion... (TODO Look into this)
+
+% Convert to XYZ
+
+screenSPDint = SplineSpd(S_screenSPD,screenSPD,S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
+% TODO Flagging that this is an opportunity to get diverging values between the
+% MATLAB vs python pipeline, that I might want to double check
+
+% figure, hold on
+% plot(SToWls(S_screenSPD),screenSPD,'k:');
+% plot(SToWls(S_xyz1931),screenSPDint,'r:');
+% xlabel('Wavelength (nm)')
+% ylabel('Transmisson')
+
+screenXYZ = T_xyz1931*screenSPDint;
+screenxyY = XYZToxyY(screenXYZ); % Note, Y is not normalised here
+
+% Convert to Luv
+
+screenLuv = XYZToLuv(screenXYZ,testingRoomWall_XYZ); % taking the clear filter as the white point - right decision? (TODO)
+
+figure(420)
+scatter3(screenLuv(2,:),screenLuv(3,:),screenLuv(1,:),...
+    [],'filled','r','MarkerFaceAlpha',0.7,'MarkerEdgeAlpha',0.7)
+% zlim([60,70])
+
+figure(421)
+scatter3(screenxyY(1,:),screenxyY(2,:),screenxyY(3,:),...
+    [],'filled','r','MarkerFaceAlpha',0.7,'MarkerEdgeAlpha',0.7)
+
+%% Real measurements comparison
+
+d = dir('SpectralMeasurement231019*.mat');
+
+for i = 1:length(d)
+    t = load(d(i).name,"SPD"); % doing it this way so I don't overwrite "SPD"
+    filterMeasurements_SPD(i,:) = t.SPD;
+    % 
+end
+
+figure,
+plot(SToWls(S_SPD),SPD,'k')
+axis tight
+
+% whichFilterMeasurements = ...
+%     [34:36;...
+%     37:39;...
+%     40:42;...
+%     43:45;...
+%     46:48;...
+%     25:27;...
+%     28:30;...
+%     49:51;...
+%     52:54];
+
+whichFilterMeasurements = reshape(1:54,3,[])';
+
+%21 last ones
+%plus blue and purple from before
+
+% figure, hold on
+% for i = 1:size(whichFilterMeasurements,1)
+%     plot(SToWls(S_SPD),...
+%         filterMeasurements_SPD(whichFilterMeasurements(i,:),:),...
+%         'Color',double(sRGB(closestInd(i),:))/255)
+% end
+
+figure, hold on
+for i = 1:size(whichFilterMeasurements,1)
+    plot(SToWls(S_SPD),...
+        filterMeasurements_SPD(whichFilterMeasurements(i,:),:),'k')
+end
+
+filterMeasurements_SPDint = SplineSpd(S_SPD,filterMeasurements_SPD',S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
+filterMeasurements_XYZ = T_xyz1931*filterMeasurements_SPDint;
+filterMeasurements_Luv = XYZToLuv(filterMeasurements_XYZ,testingRoomWall_XYZ); 
+
+figure(422)
+% for i = 1:size(whichFilterMeasurements,1)
+%     scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
+%         filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
+%         filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
+%         [],double(sRGB(closestInd(i),:))/255,'filled')
+% end
+
+% figure,hold on
+for i = 1:size(whichFilterMeasurements,1)
+    scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
+        filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
+        filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
+        [],'k','filled')
+    text(filterMeasurements_Luv(2,whichFilterMeasurements(i,1))+5,...
+        filterMeasurements_Luv(3,whichFilterMeasurements(i,1)),...
+        filterMeasurements_Luv(1,whichFilterMeasurements(i,1)),...
+        num2str(i))
+end
+axis equal
+daspect([1,1,1])
+
 
