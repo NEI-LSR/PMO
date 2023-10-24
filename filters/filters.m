@@ -206,6 +206,33 @@ if saveFigs
     print(gcf,'-vector','-dsvg',['CIELab','.svg'])
 end
 
+%% CIELUV and CIELAB subset (pilot colors)
+
+whichFilters = {'CALCOLOR 15 GREEN','CALCOLOR 30 GREEN','CALCOLOR 60 GREEN','CALCOLOR 90 GREEN','CALCOLOR 15 RED','CALCOLOR 30 RED','CALCOLOR 60 RED','CALCOLOR 90 RED'};
+for i = 1:length(whichFilters)
+    whichFiltersInd(i) = find(strcmp(whichFilters{i},table2array(data_mod(:,1))))-1;
+end
+
+figure, hold on
+scatter3(Luv(2,whichFiltersInd),Luv(3,whichFiltersInd),Luv(1,whichFiltersInd),...
+    [],double(sRGB(whichFiltersInd,:))/255,'filled','MarkerEdgeColor','k')
+% zlim([60,70])
+daspect([1,1,1])
+xlabel('u*')
+ylabel('v*')
+view(2)
+title('CIELuv')
+
+figure, hold on
+scatter3(Lab(2,whichFiltersInd),Lab(3,whichFiltersInd),Lab(1,whichFiltersInd),...
+    [],double(sRGB(whichFiltersInd,:))/255,'filled','MarkerEdgeColor','k')
+% zlim([60,70])
+daspect([1,1,1])
+xlabel('a*')
+ylabel('b*')
+view(2)
+title('CIELab')
+
 %% DKL
 
 load T_cones_sp.mat T_cones_sp S_cones_sp
@@ -251,36 +278,82 @@ end
 
 % Let's start with just picking from CIELUV, for simplicity
 
-for Lstar = 65 
-    radius = 45; %[35,45,55]
-    % Lstar = 65; %[50,65,80]
+figure(6523)
+tiledlayout(3,3)
 
-    nPoints = 8;
-    requestedLocations = zeros(nPoints,3);
+figure(6524), hold on
+tiledlayout(3,3)
 
-    requestedLocations(:,1) = ones(nPoints,1)*Lstar;
-    [requestedLocations(:,2),requestedLocations(:,3)] = pol2cart(0:2*pi/nPoints:2*pi-(2*pi/nPoints),radius);
-    requestedLocations(end+1,:) = [Lstar,0,0];
+for Lstar = [75,65,55] %1:100 75 %
+    for radius =  [32,42,52] %1:80 32 %
+        % radius = 50; %[35,45,55]
+        % Lstar = 65; %[50,65,80]
 
-    figure(422), hold on
-    scatter3(requestedLocations(:,2),requestedLocations(:,3),requestedLocations(:,1),'k')
+        nPoints = 8;
+        requestedLocations = zeros(nPoints,3);
 
-    closestInd = zeros(size(requestedLocations,1),1);
+        requestedLocations(:,1) = ones(nPoints,1)*Lstar;
+        [requestedLocations(:,2),requestedLocations(:,3)] = pol2cart(0:2*pi/nPoints:2*pi-(2*pi/nPoints),radius);
+        requestedLocations(end+1,:) = [Lstar,0,0];
 
-    for i = 1:length(closestInd)
-        [~,closestInd(i)] = min(sqrt(sum((requestedLocations(i,:)'-Luv).^2)));
+        figure(6524), hold on
+        nexttile
+        % figure(422), hold on
+        scatter3(requestedLocations(:,2),requestedLocations(:,3),requestedLocations(:,1),'k')
+
+        closestInd = zeros(size(requestedLocations,1),1);
+
+        for i = 1:length(closestInd)
+            [~,closestInd(i)] = min(sqrt(sum((requestedLocations(i,:)'-Lab).^2)));
+        end
+
+        figure(6524), hold on
+        scatter3(Lab(2,closestInd),Lab(3,closestInd),Lab(1,closestInd),...
+            [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
+        daspect([1,1,1])
+        view([-75,0])
+
+        xlabel('a*')
+        ylabel('b*')
+        % view(2)
+        title('CIELab')
+        axis equal
+
+        sq_er(Lstar,radius) = sum((requestedLocations' - Lab(:,closestInd)).^2,"all");
+
+        figure(6523)
+        nexttile
+        hold on
+        for j = 1:length(closestInd)
+            plot(SToWls(S_SPD),SPD(:,closestInd(j)),...
+                'Color',double(sRGB(closestInd(j),:))/255)
+        end
+        axis tight
+        NDfilterInd = floor(closestInd/size(data_mod,1))
+        filterInd = mod(closestInd,size(data_mod,1)-1);
+
+        data_mod.Var1(filterInd+1)
+        data_mod.Var4(filterInd+1)
+        data_mod.Var5(filterInd+1)
+
+        legend(data_mod.Var1(filterInd+1))
     end
-
-    scatter3(Luv(2,closestInd),Luv(3,closestInd),Luv(1,closestInd),...
-        [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
-    daspect([1,1,1])
-
-    xlabel('u*')
-    ylabel('v*')
-    view(2)
-    title('CIELuv')
-    axis equal
 end
+
+figure, imagesc(sq_er)
+colorbar
+axis equal tight
+caxis([0,1000])
+xlabel('radius')
+ylabel('L*')
+set(gca,'YDir','normal')
+
+hold on
+scatter([sqrt((Lab(2,whichFiltersInd).^2)+(Lab(3,whichFiltersInd).^2))],...
+    Lab(1,whichFiltersInd),...
+    [],double(sRGB(whichFiltersInd,:))/255,'filled');
+
+% scatter(repelem([32,42,52],3),repmat([55,65,75],1,3),'k*')
 
 % Which filter(s) are those?
 
@@ -299,7 +372,7 @@ axis tight
 title('SPD')
 
 NDfilterInd = floor(closestInd/size(data_mod,1))
-filterInd = mod(closestInd,size(data_mod,1));
+filterInd = mod(closestInd,size(data_mod,1)-1);
 
 data_mod.Var1(filterInd+1)
 data_mod.Var4(filterInd+1)
@@ -340,20 +413,20 @@ figure(421)
 scatter3(screenxyY(1,:),screenxyY(2,:),screenxyY(3,:),...
     [],'filled','r','MarkerFaceAlpha',0.7,'MarkerEdgeAlpha',0.7)
 
-%% Real measurements comparison
-
-d = dir('SpectralMeasurement231019*.mat');
-
-for i = 1:length(d)
-    t = load(d(i).name,"SPD"); % doing it this way so I don't overwrite "SPD"
-    filterMeasurements_SPD(i,:) = t.SPD;
-    % 
-end
-
-figure,
-plot(SToWls(S_SPD),SPD,'k')
-axis tight
-
+% %% Real measurements comparison
+% 
+% d = dir('SpectralMeasurement231019*.mat');
+% 
+% for i = 1:length(d)
+%     t = load(d(i).name,"SPD"); % doing it this way so I don't overwrite "SPD"
+%     filterMeasurements_SPD(i,:) = t.SPD;
+%     % 
+% end
+% 
+% figure,
+% plot(SToWls(S_SPD),SPD,'k')
+% axis tight
+% 
 % whichFilterMeasurements = ...
 %     [34:36;...
 %     37:39;...
@@ -364,49 +437,49 @@ axis tight
 %     28:30;...
 %     49:51;...
 %     52:54];
-
-whichFilterMeasurements = reshape(1:54,3,[])';
-
-%21 last ones
-%plus blue and purple from before
-
-% figure, hold on
-% for i = 1:size(whichFilterMeasurements,1)
-%     plot(SToWls(S_SPD),...
-%         filterMeasurements_SPD(whichFilterMeasurements(i,:),:),...
-%         'Color',double(sRGB(closestInd(i),:))/255)
-% end
-
-figure, hold on
-for i = 1:size(whichFilterMeasurements,1)
-    plot(SToWls(S_SPD),...
-        filterMeasurements_SPD(whichFilterMeasurements(i,:),:),'k')
-end
-
-filterMeasurements_SPDint = SplineSpd(S_SPD,filterMeasurements_SPD',S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
-filterMeasurements_XYZ = T_xyz1931*filterMeasurements_SPDint;
-filterMeasurements_Luv = XYZToLuv(filterMeasurements_XYZ,testingRoomWall_XYZ); 
-
-figure(422)
+% 
+% % whichFilterMeasurements = reshape(1:54,3,[])';
+% 
+% %21 last ones
+% %plus blue and purple from before
+% 
+% % figure, hold on
+% % for i = 1:size(whichFilterMeasurements,1)
+% %     plot(SToWls(S_SPD),...
+% %         filterMeasurements_SPD(whichFilterMeasurements(i,:),:),...
+% %         'Color',double(sRGB(closestInd(i),:))/255)
+% % end
+% 
+% % figure, hold on
+% % for i = 1:size(whichFilterMeasurements,1)
+% %     plot(SToWls(S_SPD),...
+% %         filterMeasurements_SPD(whichFilterMeasurements(i,:),:),'k')
+% % end
+% 
+% filterMeasurements_SPDint = SplineSpd(S_SPD,filterMeasurements_SPD',S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
+% filterMeasurements_XYZ = T_xyz1931*filterMeasurements_SPDint;
+% filterMeasurements_Luv = XYZToLuv(filterMeasurements_XYZ,testingRoomWall_XYZ); 
+% 
+% figure(422)
+% % for i = 1:size(whichFilterMeasurements,1)
+% %     scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
+% %         filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
+% %         filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
+% %         [],double(sRGB(closestInd(i),:))/255,'filled')
+% % end
+% 
+% % figure,hold on
 % for i = 1:size(whichFilterMeasurements,1)
 %     scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
 %         filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
 %         filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
-%         [],double(sRGB(closestInd(i),:))/255,'filled')
+%         [],'k','filled')
+%     text(filterMeasurements_Luv(2,whichFilterMeasurements(i,1))+5,...
+%         filterMeasurements_Luv(3,whichFilterMeasurements(i,1)),...
+%         filterMeasurements_Luv(1,whichFilterMeasurements(i,1)),...
+%         num2str(i))
 % end
-
-% figure,hold on
-for i = 1:size(whichFilterMeasurements,1)
-    scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
-        filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
-        filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
-        [],'k','filled')
-    text(filterMeasurements_Luv(2,whichFilterMeasurements(i,1))+5,...
-        filterMeasurements_Luv(3,whichFilterMeasurements(i,1)),...
-        filterMeasurements_Luv(1,whichFilterMeasurements(i,1)),...
-        num2str(i))
-end
-axis equal
-daspect([1,1,1])
+% axis equal
+% daspect([1,1,1])
 
 
