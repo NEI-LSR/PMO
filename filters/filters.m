@@ -17,6 +17,11 @@ lightSource = readtable('C:\Users\cege-user\Documents\PMO\filters\3200k AND 5600
 % testingRoomWall_S_PD    = load("SpectralMeasurement231011-114850.mat",'S_SPD');
 % testingRoomWall_S_PD    = testingRoomWall_S_PD.S_SPD;
 
+% testingRoomWall_SPD     = load("SpectralMeasurement231016-162128.mat",'SPD');
+% testingRoomWall_SPD     = testingRoomWall_SPD.SPD;
+% testingRoomWall_S_PD    = load("SpectralMeasurement231016-162128.mat",'S_SPD');
+% testingRoomWall_S_PD    = testingRoomWall_S_PD.S_SPD;
+
 testingRoomWall_SPD     = load("SpectralMeasurement231016-162128.mat",'SPD');
 testingRoomWall_SPD     = testingRoomWall_SPD.SPD;
 testingRoomWall_S_PD    = load("SpectralMeasurement231016-162128.mat",'S_SPD');
@@ -78,12 +83,18 @@ SPD = [SPD,...
 %% Compute effect in testing room
 % Take into account the light source,
 % and use the back wall as a test reflector
+% and taking into account the spectral transmission of the faceshield
 
-SPD = testingRoomWall_SPD.*SPD;
+testingRoomWallThroughFaceshield_SPD     = load("SpectralMeasurement231024-121040.mat",'SPD');
+testingRoomWallThroughFaceshield_SPD     = testingRoomWallThroughFaceshield_SPD.SPD;
+testingRoomWallThroughFaceshield_S_PD    = load("SpectralMeasurement231024-121040.mat",'S_SPD');
+testingRoomWallThroughFaceshield_S_PD    = testingRoomWallThroughFaceshield_S_PD.S_SPD;
+
+SPD = testingRoomWallThroughFaceshield_SPD.*SPD;
 
 figure, hold on
 plot(SPD)
-plot(testingRoomWall_SPD,'k','LineWidth',2)
+plot(testingRoomWallThroughFaceshield_SPD,'k','LineWidth',2)
 axis tight
 
 % load spd_houser
@@ -268,24 +279,15 @@ end
 
 %% Select colors
 
-% Convert angles that isolate DKL mechanisms into LMS
-% Convter from LMS to XYZ, then CIELUV
-
-% Or... just pick specific filters from DKL, and see where they are in
-% CIELUV?
-
-% Or both?
-
-% Let's start with just picking from CIELUV, for simplicity
-
 figure(6523)
 tiledlayout(3,3)
 
-figure(6524), hold on
+% figure(6524), hold on
+figure, hold on
 tiledlayout(3,3)
 
-for Lstar = [75,65,55] %1:100 75 %
-    for radius =  [32,42,52] %1:80 32 %
+for Lstar = [73,63,53] % 1:100 % 73
+    for radius =  [32,42,52] % 1:80 % 32
         % radius = 50; %[35,45,55]
         % Lstar = 65; %[50,65,80]
 
@@ -312,10 +314,10 @@ for Lstar = [75,65,55] %1:100 75 %
             [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
         daspect([1,1,1])
         view([-75,0])
+        % view(2)
 
         xlabel('a*')
         ylabel('b*')
-        % view(2)
         title('CIELab')
         axis equal
 
@@ -353,7 +355,7 @@ scatter([sqrt((Lab(2,whichFiltersInd).^2)+(Lab(3,whichFiltersInd).^2))],...
     Lab(1,whichFiltersInd),...
     [],double(sRGB(whichFiltersInd,:))/255,'filled');
 
-% scatter(repelem([32,42,52],3),repmat([55,65,75],1,3),'k*')
+scatter(repelem([32,42,52],3),repmat([55,65,75],1,3),'k*')
 
 % Which filter(s) are those?
 
@@ -413,73 +415,92 @@ figure(421)
 scatter3(screenxyY(1,:),screenxyY(2,:),screenxyY(3,:),...
     [],'filled','r','MarkerFaceAlpha',0.7,'MarkerEdgeAlpha',0.7)
 
-% %% Real measurements comparison
-% 
-% d = dir('SpectralMeasurement231019*.mat');
-% 
-% for i = 1:length(d)
-%     t = load(d(i).name,"SPD"); % doing it this way so I don't overwrite "SPD"
-%     filterMeasurements_SPD(i,:) = t.SPD;
-%     % 
-% end
-% 
-% figure,
-% plot(SToWls(S_SPD),SPD,'k')
-% axis tight
-% 
-% whichFilterMeasurements = ...
-%     [34:36;...
-%     37:39;...
-%     40:42;...
-%     43:45;...
-%     46:48;...
-%     25:27;...
-%     28:30;...
-%     49:51;...
-%     52:54];
-% 
-% % whichFilterMeasurements = reshape(1:54,3,[])';
-% 
-% %21 last ones
-% %plus blue and purple from before
-% 
-% % figure, hold on
-% % for i = 1:size(whichFilterMeasurements,1)
-% %     plot(SToWls(S_SPD),...
-% %         filterMeasurements_SPD(whichFilterMeasurements(i,:),:),...
-% %         'Color',double(sRGB(closestInd(i),:))/255)
-% % end
-% 
-% % figure, hold on
-% % for i = 1:size(whichFilterMeasurements,1)
-% %     plot(SToWls(S_SPD),...
-% %         filterMeasurements_SPD(whichFilterMeasurements(i,:),:),'k')
-% % end
-% 
-% filterMeasurements_SPDint = SplineSpd(S_SPD,filterMeasurements_SPD',S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
-% filterMeasurements_XYZ = T_xyz1931*filterMeasurements_SPDint;
-% filterMeasurements_Luv = XYZToLuv(filterMeasurements_XYZ,testingRoomWall_XYZ); 
-% 
-% figure(422)
-% % for i = 1:size(whichFilterMeasurements,1)
-% %     scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
-% %         filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
-% %         filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
-% %         [],double(sRGB(closestInd(i),:))/255,'filled')
-% % end
-% 
-% % figure,hold on
-% for i = 1:size(whichFilterMeasurements,1)
-%     scatter3(filterMeasurements_Luv(2,whichFilterMeasurements(i,:)),...
-%         filterMeasurements_Luv(3,whichFilterMeasurements(i,:)),...
-%         filterMeasurements_Luv(1,whichFilterMeasurements(i,:)),...
-%         [],'k','filled')
-%     text(filterMeasurements_Luv(2,whichFilterMeasurements(i,1))+5,...
-%         filterMeasurements_Luv(3,whichFilterMeasurements(i,1)),...
-%         filterMeasurements_Luv(1,whichFilterMeasurements(i,1)),...
-%         num2str(i))
-% end
-% axis equal
-% daspect([1,1,1])
+%% Real measurements comparison
+
+d = dir('SpectralMeasurement231024*.mat');
+
+for i = 1:length(d)
+    t = load(d(i).name,"SPD"); % doing it this way so I don't overwrite "SPD"
+    filterMeasurements_SPD(i,:) = t.SPD;
+    % 
+end
+
+whichFilterMeasurements = reshape(1:27,3,[])';
+
+figure, hold on
+for j = 1:length(closestInd)
+    i = closestInd(j);
+    plot3(SToWls(S_SPD),SPD(:,i),ones(size(SPD(:,i)))*j,...
+        'Color',double(sRGB(i,:))/255,'LineWidth',2,'LineStyle','--')
+end
+
+% figure, hold on
+for i = 1:size(whichFilterMeasurements,1)
+    plot3(SToWls(S_SPD),...
+        filterMeasurements_SPD(whichFilterMeasurements(i,:),:),...
+        ones(size(SPD(:,i)))*i,...
+        'Color',double(sRGB(closestInd(i),:))/255)
+end
+axis tight
+
+filterMeasurements_SPDint = SplineSpd(S_SPD,filterMeasurements_SPD',S_xyz1931); % should this be SplineSpd/SplineSrf/SplineRaw (what's the difference?)
+filterMeasurements_XYZ = T_xyz1931*filterMeasurements_SPDint;
+filterMeasurements_Lab = XYZToLab(filterMeasurements_XYZ,testingRoomWall_XYZ); 
+
+figure, hold on
+
+scatter3(requestedLocations(:,2),requestedLocations(:,3),requestedLocations(:,1),'k')
+
+scatter3(Lab(2,closestInd),Lab(3,closestInd),Lab(1,closestInd),...
+    [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
+
+for i = 1:size(whichFilterMeasurements,1)
+    scatter3(filterMeasurements_Lab(2,whichFilterMeasurements(i,:)),...
+        filterMeasurements_Lab(3,whichFilterMeasurements(i,:)),...
+        filterMeasurements_Lab(1,whichFilterMeasurements(i,:)),...
+        [],double(sRGB(closestInd(i),:))/255,'filled')
+end
+
+daspect([1,1,1])
+
+%%
+
+testingRoomWallThroughFaceShield_SPD = load("SpectralMeasurement231024-121012.mat",'SPD');
+testingRoomWallThroughFaceShield_SPD = testingRoomWallThroughFaceShield_SPD.SPD;
+
+testingRoomWallThroughFaceShield_S_SPD = load("SpectralMeasurement231024-121012.mat",'S_SPD');
+testingRoomWallThroughFaceShield_S_SPD = testingRoomWallThroughFaceShield_S_SPD.S_SPD;
+
+SPD_tran = (SPD_raw(filterInd,:)./table2array(lightSource(:,2))')';
+
+SPD_faceshieldCorrected = testingRoomWallThroughFaceShield_SPD.*SPD_tran;
+
+SPD_faceshieldCorrectedND = SPD_faceshieldCorrected;
+for i = 1:length(NDfilterInd)
+    SPD_faceshieldCorrectedND(:,i) = SPD_faceshieldCorrectedND(:,i); %.*SPD(:,find(strcmp('Pale Grey',table2array(data_mod(:,1))))-1) % TODO I need to calculate the non-light-sourced versions of this, or rename the variables up top
+end
+
+%%
+clc
+figure, hold on
+
+for i = 1:size(whichFilterMeasurements,1)
+    plot3(SToWls(S_SPD),...
+        filterMeasurements_SPD(whichFilterMeasurements(i,:),:),...
+        ones(size(SPD(:,i)))*i,...
+        'Color',double(sRGB(closestInd(i),:))/255)
+end
+axis tight
+
+for i = 1:size(whichFilterMeasurements,1)
+    plot3(SToWls(testingRoomWallThroughFaceShield_S_SPD),...
+        SPD_faceshieldCorrected(:,i),...
+        ones(size(SPD(:,i)))*i,...
+        'Color',double(sRGB(closestInd(i),:))/255,'LineWidth',2,'LineStyle','--')
+end
+
+
+
+
 
 

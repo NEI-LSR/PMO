@@ -2,8 +2,6 @@ clc, clear, close all
 
 % Take measurements with the PR655/670
 
-% Spectral Resolution: 3.12 nm / pixel
-
 %%
 
 % retval = PR670init('COM7');
