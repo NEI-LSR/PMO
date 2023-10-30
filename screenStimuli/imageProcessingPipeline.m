@@ -3,6 +3,7 @@ clc, clear, close all
 %%
 
 sRGBinput = imread('C:\Users\cege-user\Documents\PMO\screenStimuli\_MG_9169.tif');
+% sRGBinput(1,1,:) = 255; % trying forcing the top value to be 255 because it seems like the sRGB conversion scales to max, and so assumes that there will be pixel values at max
 figure,imshow(sRGBinput)
 sRGBreshape = reshape(sRGBinput,[size(sRGBinput,1)*size(sRGBinput,2),size(sRGBinput,3)]);
 
@@ -103,12 +104,13 @@ disp(XYZToRGBMat*squeeze(screenXYZ(:,end,[1,2,3])))
 
 RGBlin = XYZToRGBMat*XYZ;
 
-% figure,
-% histogram(RGBlin)
-%
-% figure,
-% histogram(sRGBinput)
+figure,
+histogram(RGBlin)
+title('RGBlin')
 
+figure,
+histogram(sRGBinput)
+title('sRGB input')
 
 %% Compute linearization LUT
 
@@ -128,17 +130,13 @@ for i = 1:3
     ylabel('Y')
 end
 
-x2 = linspace(0,255,256);
+x2 = 0:255;
 for i = 1:3
     figure(100+i)
-    p(i,:) = polyfit(0:15:255,screenxyY_reshape_norm(3,:,i),2);
-    if i == 3 % exclude weird datapoint in b
-        p(i,:) = polyfit(0:15:225,screenxyY_reshape_norm(3,1:end-2,i),2);
-    end
-    y2 = polyval(p(i,:),x2);
-    plot(x2,y2,...
+    % p(i,:) = polyfit(0:15:255,screenxyY_reshape_norm(3,:,i),2);
+    LUT(:,i) = spline(0:15:255,screenxyY_reshape_norm(3,:,i),x2);
+    plot(x2,LUT(:,i),...
         '--','Color',cols{i},'LineWidth',2)
-    LUT(:,i) = y2;
 end
 
 % x2 = linspace(0,255,1000);
