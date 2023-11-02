@@ -58,8 +58,13 @@ end
 
 %% Exclude SPDs that we don't have access to
 
-SPD = SPD(:,        ~strcmp('E COLOR',table2array(data(2:end,4))) & ~strcmp('GAM',table2array(data(2:end,4))));
-data_mod = data(    ~strcmp('E COLOR',table2array(data(:    ,4))) & ~strcmp('GAM',table2array(data(:    ,4))),:);
+% SPD = SPD(:,        ~strcmp('E COLOR',table2array(data(2:end,4))) & ~strcmp('GAM',table2array(data(2:end,4))));
+% data_mod = data(    ~strcmp('E COLOR',table2array(data(:    ,4))) & ~strcmp('GAM',table2array(data(:    ,4))),:);
+
+SPD = SPD(:,        ~strcmp('E COLOR',table2array(data(2:end,4))) & ~strcmp('GAM',table2array(data(2:end,4))) & ~strcmp('APRICOT',table2array(data(2:end,1))) & ~strcmp('R317 APRICOT',table2array(data(2:end,1))) & ~strcmp('MAYAN SUN',table2array(data(2:end,1))));
+data_mod = data(    ~strcmp('E COLOR',table2array(data(:    ,4))) & ~strcmp('GAM',table2array(data(:    ,4))) & ~strcmp('APRICOT',table2array(data(:    ,1))) & ~strcmp('R317 APRICOT',table2array(data(:    ,1))) & ~strcmp('MAYAN SUN',table2array(data(:    ,1))),:);
+
+
 % data_mod = data;
 
 figure, hold on
@@ -211,7 +216,15 @@ ylabel('b*')
 view(2)
 title('CIELab')
 
-% zlim([60,70])
+hold on
+
+zlim([65,80])
+
+r = 52;
+th = 0:pi/50:2*pi;
+xunit = r * cos(th);
+yunit = r * sin(th);
+plot3(xunit, yunit, ones(size(xunit))*73,'k');
 
 if saveFigs
     print(gcf,'-vector','-dsvg',['CIELab','.svg'])
@@ -287,7 +300,7 @@ figure, hold on
 tiledlayout(3,3)
 
 for Lstar = [73,63,53] % 1:100 % 73
-    for radius =  [32,42,52] % 1:80 % 32
+    for radius = [32,42,52] % 1:80 % 32
         % radius = 50; %[35,45,55]
         % Lstar = 65; %[50,65,80]
 
@@ -313,8 +326,8 @@ for Lstar = [73,63,53] % 1:100 % 73
         scatter3(Lab(2,closestInd),Lab(3,closestInd),Lab(1,closestInd),...
             [],double(sRGB(closestInd,:))/255,'filled','MarkerEdgeColor','k')
         daspect([1,1,1])
-        view([-75,0])
-        % view(2)
+        % view([-75,0])
+        view(2)
 
         xlabel('a*')
         ylabel('b*')
@@ -331,7 +344,11 @@ for Lstar = [73,63,53] % 1:100 % 73
                 'Color',double(sRGB(closestInd(j),:))/255)
         end
         axis tight
-        NDfilterInd = floor(closestInd/size(data_mod,1))
+
+        disp(Lstar);
+        disp(radius);
+        NDfilterInd = floor(closestInd/size(data_mod,1));
+        disp(NDfilterInd);
         filterInd = mod(closestInd,size(data_mod,1)-1);
 
         data_mod.Var1(filterInd+1)
@@ -373,18 +390,18 @@ ylabel('Transmisson')
 axis tight
 title('SPD')
 
-NDfilterInd = floor(closestInd/size(data_mod,1))
-filterInd = mod(closestInd,size(data_mod,1)-1);
-
-data_mod.Var1(filterInd+1)
-data_mod.Var4(filterInd+1)
-data_mod.Var5(filterInd+1)
-
-legend(data_mod.Var1(filterInd+1))
+% NDfilterInd = floor(closestInd/size(data_mod,1))
+% filterInd = mod(closestInd,size(data_mod,1)-1);
+% 
+% data_mod.Var1(filterInd+1)
+% data_mod.Var4(filterInd+1)
+% data_mod.Var5(filterInd+1)
+% 
+% legend(data_mod.Var1(filterInd+1))
 
 %% Screen measurements
 
-screenSPD = readmatrix("../displayCharacterization/measurements/data_init_0.csv");
+screenSPD = readmatrix("../displayCharacterization/measurements/data_init_0.csv"); % (there are more recent MATLAB based measurements that could be used instead)
 S_screenSPD = [384,4,100]; % This is slightly wacky - it should have a value at 380, but it seems to get lost somewhere along the conversion... (TODO Look into this)
 
 % Convert to XYZ
@@ -417,7 +434,12 @@ scatter3(screenxyY(1,:),screenxyY(2,:),screenxyY(3,:),...
 
 %% Real measurements comparison
 
-d = dir('SpectralMeasurement231024*.mat');
+% d = dir('SpectralMeasurement231024*.mat'); % For 73,32
+
+d = dir('SpectralMeasurement231101*.mat'); % For 53,32 and 73,52
+% d = d(1:27); % For 53,32
+d = d(28:end); % For 73,52
+
 
 for i = 1:length(d)
     t = load(d(i).name,"SPD"); % doing it this way so I don't overwrite "SPD"
@@ -481,7 +503,6 @@ for i = 1:length(NDfilterInd)
 end
 
 %%
-clc
 figure, hold on
 
 for i = 1:size(whichFilterMeasurements,1)

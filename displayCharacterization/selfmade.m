@@ -4,6 +4,7 @@ retval = PR655init('COM7');
 S_SPD = [380,1,401];
 
 steps = 0:15:255;
+% steps = 255;
 
 figure, hold on
 for j = 1:3

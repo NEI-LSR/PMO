@@ -1,14 +1,23 @@
-clc, clear, close all
+function outputIm = imageProcessingPipeline(sRGBinput,LabOffset)
+
+% clc, clear, close all
 
 %%
 
-sRGBinput = imread('C:\Users\cege-user\Documents\PMO\screenStimuli\_MG_9169.tif');
+% sRGBinput = imread('C:\Users\cege-user\Documents\PMO\screenStimuli\_MG_9169.tif');
+% sRGBinput = imread('C:\Users\cege-user\Documents\PMO\screenStimuli\IMG_5644.tif');
 % sRGBinput(1,1,:) = 255; % trying forcing the top value to be 255 because it seems like the sRGB conversion scales to max, and so assumes that there will be pixel values at max
-figure,imshow(sRGBinput)
+
+% figure,imshow(sRGBinput)
 sRGBreshape = reshape(sRGBinput,[size(sRGBinput,1)*size(sRGBinput,2),size(sRGBinput,3)]);
 
 sRGBlin = SRGBGammaUncorrect(sRGBreshape);
 XYZ = SRGBPrimaryToXYZ(sRGBlin');
+
+% % test hack
+% hack = zeros(size(XYZ));
+% hack(3,:) = 0.05;
+% XYZ = XYZ + hack;
 
 xy = XYZToxyY(XYZ);
 
@@ -17,14 +26,14 @@ sRGBgamut_sRGBlin = SRGBGammaUncorrect(sRGBgamut_sRGB);
 sRGBgamut_XYZ = SRGBPrimaryToXYZ(sRGBgamut_sRGBlin');
 sRGBgamut_xy = XYZToxyY(sRGBgamut_XYZ);
 
-figure, hold on
-DrawChromaticity
-% scatter(xy(1,1:100:end),xy(2,1:100:end),'k','filled',...
-%     'MarkerEdgeAlpha',0.1,'MarkerFaceAlpha',0.1)
-scatter3(xy(1,1:100:end),xy(2,1:100:end),xy(3,1:100:end),...
-    [],double(sRGBreshape(1:100:end,:))/255,'filled')
-scatter(sRGBgamut_xy(1,:),sRGBgamut_xy(2,:),'r*')
-plot([sRGBgamut_xy(1,:),sRGBgamut_xy(1,1)],[sRGBgamut_xy(2,:),sRGBgamut_xy(2,1)],'r:')
+% figure, hold on
+% DrawChromaticity
+% % scatter(xy(1,1:100:end),xy(2,1:100:end),'k','filled',...
+% %     'MarkerEdgeAlpha',0.1,'MarkerFaceAlpha',0.1)
+% scatter3(xy(1,1:100:end),xy(2,1:100:end),xy(3,1:100:end),...
+%     [],double(sRGBreshape(1:100:end,:))/255,'filled')
+% scatter(sRGBgamut_xy(1,:),sRGBgamut_xy(2,:),'r*')
+% plot([sRGBgamut_xy(1,:),sRGBgamut_xy(1,1)],[sRGBgamut_xy(2,:),sRGBgamut_xy(2,1)],'r:')
 
 %% Convert from XYZ to display space
 
@@ -35,11 +44,9 @@ load T_xyz1931.mat T_xyz1931 S_xyz1931 % Requires PsychToolbox
 % screenSPD = readmatrix("../displayCharacterization/measurements/data_init_0.csv");
 % S_screenSPD = [384,4,100]; % This is slightly wacky - it should have a value at 380, but it seems to get lost somewhere along the conversion... (TODO Look into this)
 
-load("SpectralMeasurement231027-183237.mat",'SPD','S_SPD');
+load("SpectralMeasurement231031-151235",'SPD','S_SPD');
 screenSPD = SPD;
 S_screenSPD = S_SPD;
-
-screenSPD(:,1,3) = screenSPD(:,2,3);
 
 % Convert to XYZ
 
@@ -48,21 +55,24 @@ for i = 1:4
 end
 
 % figure, hold on
-% for i = 3%1:4
-%     plot(SToWls(S_screenSPD),screenSPD(:,:,i),'k:');
-%     plot(SToWls(S_xyz1931),screenSPDint(:,:,i),'r:');
+% for i = 1:4
+%     plot(SToWls(S_screenSPD),screenSPD(:,:,i),'k');
+%     plot(SToWls(S_xyz1931),screenSPDint(:,:,i),'r--');
 % end
 % xlabel('Wavelength (nm)')
 % ylabel('Transmisson')
+% axis tight
 
 for i = 1:4
     screenXYZ(:,:,i) = T_xyz1931*screenSPDint(:,:,i);
 end
 
-% screenXYZ(:,end,3) = screenXYZ(:,end,3) * 1.1616; % attempted correction for blue non-linearity at top of range
+screenXYZNormFactor = screenXYZ(2,end,end);
+% save('screenXYZNormFactor','screenXYZNormFactor')
+screenXYZ = (screenXYZ/screenXYZNormFactor);
 
 for i = 1:4
-    screenxyY(:,:,i) = XYZToxyY(screenXYZ(:,:,i)); % Note, Y is not normalised here
+    screenxyY(:,:,i) = XYZToxyY(screenXYZ(:,:,i));
 end
 
 % figure,
@@ -70,47 +80,124 @@ end
 % figure,
 % scatter3(screenXYZ(1,37:54),screenXYZ(2,37:54),screenXYZ(3,37:54)) %just blue
 
-for i = 1:4
-    scatter3(screenxyY(1,:,i),screenxyY(2,:,i),screenxyY(3,:,i),'k','filled')
-end
+% figure, hold on
+% for i = 1:4
+%     scatter3(screenxyY(1,:,i),screenxyY(2,:,i),screenxyY(3,:,i),'k','filled')
+% end
+
+%% Convert into Lab, modify, and convert back to XYZ
+
+testingRoomWall_XYZ = [0.978261507670876, 1, 0.727287896622727]';
+
+Lab = XYZToLab(XYZ,testingRoomWall_XYZ); 
+
+% LabNorm = Lab;
+% LabNorm(1,:) = LabNorm(1,:) - mean(LabNorm(1,:)); % normalise L* (but preserve a* and b*)
+% LabShift = LabNorm + repmat(LabOffset',1,size(XYZ,2));
+LabShift = Lab + repmat(LabOffset',1,size(XYZ,2));
+
+
+% figure, hold on
+% scatter(LabNorm(2,:),LabNorm(3,:),'k.')
+% scatter(LabShift(2,:),LabShift(3,:),'r.')
+% axis equal
+% xline(0)
+% yline(0)
+
+XYZ = LabToXYZ(LabShift,testingRoomWall_XYZ);
+
+% xy_shifted = XYZToxyY(XYZ);
+
+% figure, hold on
+% DrawChromaticity
+% scatter3(xy_shifted(1,1:100:end),xy_shifted(2,1:100:end),xy_shifted(3,1:100:end))
+% scatter(sRGBgamut_xy(1,:),sRGBgamut_xy(2,:),'r*')
+% plot([sRGBgamut_xy(1,:),sRGBgamut_xy(1,1)],[sRGBgamut_xy(2,:),sRGBgamut_xy(2,1)],'r:')
+
 
 %% Create conversion matrix
 
-xr = screenxyY(1,18,1);
-yr = screenxyY(2,18,1);
-xg = screenxyY(1,18,2);
-yg = screenxyY(2,18,2);
-xb = screenxyY(1,18,3);
-yb = screenxyY(2,18,3);
-xw = screenxyY(1,18,4);
-yw = screenxyY(2,18,4);
+% -- % PTB method
 
-XYZToRGBMat = XYZToRGBMatrix(xr, yr, xg, yg, xb, yb, xw, yw);
+% xr = screenxyY(1,18,1);
+% yr = screenxyY(2,18,1);
+% xg = screenxyY(1,18,2);
+% yg = screenxyY(2,18,2);
+% xb = screenxyY(1,18,3);
+% yb = screenxyY(2,18,3);
+% xw = screenxyY(1,18,4);
+% yw = screenxyY(2,18,4);
+% 
+% XYZToRGBMat1 = XYZToRGBMatrix(xr, yr, xg, yg, xb, yb, xw, yw);
 
-% XYZToRGBMat = inv(squeeze(screenXYZ(:,end,[1,2,3]))); 
-% I prefer this way (it's cleaner) but it seems to need a normalising
-% value that I'm missing somewhere (the results come out way too bright)
+% -- % Own method
 
-disp(XYZToRGBMat);
-disp(XYZToRGBMat*squeeze(screenXYZ(:,end,[1,2,3])))
+% XYZblack = squeeze(screenXYZ(:,1,[1,2,3]));
 
-% figure,
-% imagesc(M)
+RGBToXYZMat = squeeze(screenXYZ(:,end,[1,2,3]));% - XYZblack;
+XYZToRGBMat = inv(RGBToXYZMat); 
+% I prefer this way (it's cleaner)
 
-% figure,
-% imagesc(XYZToRGBMat)
+% -- % Bruce Lindbloom method (haven't got this to work yet)
+
+% screenXYZgamut = squeeze(screenXYZ(:,end,[1,2,3]));
+% S = screenXYZgamut^-1 * squeeze(screenXYZ(:,end,4));
+
+% XYZToRGBMat3 = squeeze(screenXYZ(:,end,[1,2,3])).*S';
+
+% Katie's method:
+% XYZToRGBMat3 = [S(1)*screenXYZgamut(1,1) S(2)*screenXYZgamut(1,2) S(3)*screenXYZgamut(1,3);...
+% S(1)*screenXYZgamut(2,1) S(2)*screenXYZgamut(2,2) S(3)*screenXYZgamut(2,3);...
+% S(1)*screenXYZgamut(3,1) S(2)*screenXYZgamut(3,2) S(3)*screenXYZgamut(3,3)];
+
+% Direct from Bruce website:
+
+% Xr = xr/yr;
+% Yr = 1;
+% Zr = (1 - xr - yr)/yr;
+% Xg = xg/yg;
+% Yg = 1;
+% Zg = (1 - xg - yg)/yg;
+% Xb = xb/yb;
+% Yb = 1;
+% Zb = (1 - xb - yb)/yb;
+% 
+%  RGBToXYZMat3= [...
+%     S(1)*Xr, S(2)*Xg, S(3)*Xb;...
+%     S(1)*Yr, S(2)*Yg, S(3)*Yb;...
+%     S(1)*Zr, S(2)*Zg, S(3)*Zb];
+% 
+% XYZToRGBMat3 = inv(RGBToXYZMat3);
+
+% disp(XYZToRGBMat);
+% disp(XYZToRGBMat*squeeze(screenXYZ(:,end,[1,2,3])))
+
+% try
+%     figure,
+%     imagesc(XYZToRGBMat1)
+%     colorbar
+% 
+%     figure,
+%     imagesc(XYZToRGBMat2)
+%     colorbar
+% 
+%     figure,
+%     imagesc(XYZToRGBMat3)
+%     colorbar
+% catch
+% end
 
 %% XYZ to RGB
 
 RGBlin = XYZToRGBMat*XYZ;
 
-figure,
-histogram(RGBlin)
-title('RGBlin')
-
-figure,
-histogram(sRGBinput)
-title('sRGB input')
+% figure,
+% histogram(RGBlin)
+% title('RGBlin')
+% 
+% figure,
+% histogram(sRGBinput)
+% title('sRGB input')
 
 %% Compute linearization LUT
 
@@ -122,21 +209,20 @@ end
 cols = {'r','g','b'};
 
 % figure, hold on
-for i = 1:3
-    figure(100+i), hold on
-    plot(0:15:255,screenxyY_reshape_norm(3,:,i),...
-        'o-','Color',cols{i})
-    xlabel('gunVal')
-    ylabel('Y')
-end
+% for i = 1:3
+%     figure(100+i), hold on
+%     plot(0:15:255,screenxyY_reshape_norm(3,:,i),...
+%         'o-','Color',cols{i})
+%     xlabel('gunVal')
+%     ylabel('Y')
+% end
 
 x2 = 0:255;
 for i = 1:3
-    figure(100+i)
-    % p(i,:) = polyfit(0:15:255,screenxyY_reshape_norm(3,:,i),2);
+    % figure(100+i)
     LUT(:,i) = spline(0:15:255,screenxyY_reshape_norm(3,:,i),x2);
-    plot(x2,LUT(:,i),...
-        '--','Color',cols{i},'LineWidth',2)
+    % plot(x2,LUT(:,i),...
+    %     '--','Color',cols{i},'LineWidth',2)
 end
 
 % x2 = linspace(0,255,1000);
@@ -145,18 +231,24 @@ end
 
 %% Test
 
-XYZrequested = [0.5,0.5,0.5];
-
-for i = 1:3
-    [~,minloc(i)] = min(abs(XYZrequested(i) - LUT(:,i)));
-    minloc(i) = minloc(i)-1; % to correct for indexing starting at 1
-    % disp(minloc(i))
-    figure(100+i)
-    xline(minloc(i))
-    yline(0.5)
-end
+% XYZrequested = [0.5,0.5,0.5];
+% 
+% for i = 1:3
+%     [~,minloc(i)] = min(abs(XYZrequested(i) - LUT(:,i)));
+%     minloc(i) = minloc(i)-1; % to correct for indexing starting at 1
+%     % disp(minloc(i))
+%     figure(100+i)
+%     xline(minloc(i))
+%     yline(0.5)
+% end
 
 %% RGBlin to gunVals, using LUT
+
+
+% for i = 1:3
+%     figure,
+%     histogram(RGBlin(i,:))
+% end
 
 gunVals = zeros(size(RGBlin));
 for i = 1:size(RGBlin,2)
@@ -166,18 +258,20 @@ for i = 1:size(RGBlin,2)
 end
 gunVals = gunVals-1; % to correct for indexing starting at 1
 
-for i = 1:3
-    figure,
-    histogram(gunVals(i,:))
-end
+% for i = 1:3
+%     figure,
+%     histogram(gunVals(i,:))
+% end
 
-figure,
-histogram(gunVals)
+% figure,
+% histogram(gunVals)
 
 %%
-figure,
-imshow(uint8(reshape(gunVals',[size(sRGBinput)])))
 
+outputIm = uint8(reshape(gunVals',[size(sRGBinput)]));
+
+% figure,
+% imshow(outputIm)
 
 
 
