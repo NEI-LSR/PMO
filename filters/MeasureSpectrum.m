@@ -1,6 +1,6 @@
 clc, clear, close all
 
-% Take measurements with the PR655/670
+% Take measurements w ith the PR655/670
 
 %%
 
@@ -13,8 +13,8 @@ S_SPD = [380,1,401];
 SPD = PR655measspd(S_SPD);
 
 %%
-figure, hold on
-plot(SToWls(S_SPD),SPD)
+% figure, hold on
+% plot(SToWls(S_SPD),SPD)
 
 save(['SpectralMeasurement',char(datetime('now','format','yyMMdd-HHmmss'))],...
     'S_SPD','SPD');
