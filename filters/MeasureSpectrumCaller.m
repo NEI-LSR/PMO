@@ -1,4 +1,4 @@
-for i = 1:6
+for i = 1:3
     MeasureSpectrum
 end
 
