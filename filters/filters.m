@@ -186,7 +186,7 @@ if saveFigs
     print(gcf,'-vector','-dsvg',['upvp','.svg'])
 end
 
-%% CIELUV
+%% CIELUV and CIELAB
 
 Luv = XYZToLuv(XYZ,testingRoomWall_XYZ); 
 Lab = XYZToLab(XYZ,testingRoomWall_XYZ);
@@ -218,13 +218,13 @@ title('CIELab')
 
 hold on
 
-zlim([65,80])
+% zlim([65,80])
 
-r = 52;
-th = 0:pi/50:2*pi;
-xunit = r * cos(th);
-yunit = r * sin(th);
-plot3(xunit, yunit, ones(size(xunit))*73,'k');
+% r = 52;
+% th = 0:pi/50:2*pi;
+% xunit = r * cos(th);
+% yunit = r * sin(th);
+% plot3(xunit, yunit, ones(size(xunit))*73,'k');
 
 if saveFigs
     print(gcf,'-vector','-dsvg',['CIELab','.svg'])
@@ -265,8 +265,8 @@ T_Y = 683*T_xyzJuddVos(2,:);
 T_Y = SplineCmf(S_xyzJuddVos,T_Y,S_cones_sp);
 
 LMS     = T_cones_sp * SplineSpd(S_SPD,SPD,S_cones_sp);
-bgLMS   = T_cones_sp * SplineSpd(S_SPD,testingRoomWall_SPD,S_cones_sp);
-LMSinc = LMS - bgLMS;
+bgLMS   = T_cones_sp * SplineSpd(S_SPD,testingRoomWall_SPD,S_cones_sp); % testingRoomWallThroughFaceshield_SPD instead?
+LMSinc  = LMS - bgLMS;
 
 [M_ConeIncToDKL,LMLumWeights] = ComputeDKL_M(bgLMS,T_cones_sp,T_Y);
 
@@ -372,7 +372,7 @@ scatter([sqrt((Lab(2,whichFiltersInd).^2)+(Lab(3,whichFiltersInd).^2))],...
     Lab(1,whichFiltersInd),...
     [],double(sRGB(whichFiltersInd,:))/255,'filled');
 
-scatter(repelem([32,42,52],3),repmat([55,65,75],1,3),'k*')
+scatter(repelem([32,42,52],3),repmat([53,63,73],1,3),'k*')
 
 % Which filter(s) are those?
 
