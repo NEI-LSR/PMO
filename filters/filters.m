@@ -355,6 +355,8 @@ for Lstar = [73,63,53] % 1:100 % 73
         data_mod.Var4(filterInd+1)
         data_mod.Var5(filterInd+1)
 
+        disp(sRGB(closestInd,:))
+
         legend(data_mod.Var1(filterInd+1))
     end
 end
