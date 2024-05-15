@@ -329,6 +329,8 @@ for Lstar = [73,63,53] % 1:100 % 73
         % view([-75,0])
         view(2)
 
+        DKLsubset(:,:,Lstar,radius) = DKL(:,closestInd);
+
         xlabel('a*')
         ylabel('b*')
         title('CIELab')
@@ -521,9 +523,4 @@ for i = 1:size(whichFilterMeasurements,1)
         ones(size(SPD(:,i)))*i,...
         'Color',double(sRGB(closestInd(i),:))/255,'LineWidth',2,'LineStyle','--')
 end
-
-
-
-
-
 
