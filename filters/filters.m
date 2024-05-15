@@ -259,19 +259,50 @@ title('CIELab')
 
 %% DKL
 
-load T_cones_sp.mat T_cones_sp S_cones_sp
-load T_xyzJuddVos.mat T_xyzJuddVos S_xyzJuddVos
-T_Y = 683*T_xyzJuddVos(2,:);
-T_Y = SplineCmf(S_xyzJuddVos,T_Y,S_cones_sp);
+% Load cone functions
+load T_cones_sp.mat S_cones_sp  T_cones_sp
+S_cones = S_cones_sp;
+T_cones = T_cones_sp;
 
-LMS     = T_cones_sp * SplineSpd(S_SPD,SPD,S_cones_sp);
-bgLMS   = T_cones_sp * SplineSpd(S_SPD,testingRoomWall_SPD,S_cones_sp); % testingRoomWallThroughFaceshield_SPD instead?
-LMSinc  = LMS - bgLMS;
+% Load observer functions
+load T_xyz1931.mat  S_xyz1931   T_xyz1931
+S_xyz = S_xyz1931;
+T_xyz = T_xyz1931;
 
-[M_ConeIncToDKL,LMLumWeights] = ComputeDKL_M(bgLMS,T_cones_sp,T_Y);
+T_Y = 683*T_xyz(2,:); % Rescale for radiometry
+S_Y = S_xyz;
+T_Y = SplineCmf(S_Y,T_Y,S_cones);
 
-% DKL = M_ConeIncToDKL*LMS;
-DKL = M_ConeIncToDKL*LMSinc;
+T_xyz = SplineCmf(S_xyz,T_xyz,S_cones);
+
+M_XYZToLMS = (T_xyz'\T_cones')';  
+% T_cones_chk = M_XYZToLMS*T_xyz;
+% figure, hold on
+% plot(T_cones','k')
+% plot(T_cones_chk','r--')
+
+bgLMS  = M_XYZToLMS * testingRoomWall_XYZ;
+LMSinc = M_XYZToLMS * (XYZ - testingRoomWall_XYZ);
+
+[M_ConeIncToDKL] = ComputeDKL_M(bgLMS, T_cones, T_Y);
+DKL = M_ConeIncToDKL * LMSinc;
+
+%-% Alternative SPD-based approach
+
+% load T_cones_sp.mat T_cones_sp S_cones_sp
+% load T_xyzJuddVos.mat T_xyzJuddVos S_xyzJuddVos
+% T_Y = 683*T_xyzJuddVos(2,:);
+% T_Y = SplineCmf(S_xyzJuddVos,T_Y,S_cones_sp);
+% 
+% LMS     = T_cones_sp * SplineSpd(S_SPD,SPD,S_cones_sp);
+% bgLMS   = T_cones_sp * SplineSpd(S_SPD,testingRoomWall_SPD,S_cones_sp); % testingRoomWallThroughFaceshield_SPD instead?
+% LMSinc  = LMS - bgLMS;
+% 
+% [M_ConeIncToDKL,LMLumWeights] = ComputeDKL_M(bgLMS,T_cones_sp,T_Y);
+% 
+% % DKL = M_ConeIncToDKL*LMS;
+% DKL = M_ConeIncToDKL*LMSinc;
+% 
 
 figure,
 scatter3(DKL(2,:),DKL(3,:),DKL(1,:),...
@@ -524,3 +555,6 @@ for i = 1:size(whichFilterMeasurements,1)
         'Color',double(sRGB(closestInd(i),:))/255,'LineWidth',2,'LineStyle','--')
 end
 
+%%
+
+save('DKLsubset','DKLsubset')
