@@ -1,7 +1,7 @@
 clc, clear, close all
 
-% T = readtable('live_stim_data.xlsx','Sheet','All resuts (V1 V2 faces)');
-T = readtable('combined_live_stim_data.csv');
+T = readtable('live_stim_data.xlsx','Sheet','All resuts (V1 V2 faces)');
+% T = readtable('combined_live_stim_data.csv');
 
 hue_angle = [135,180,225,270,315,0,45,90];
 
@@ -13,14 +13,14 @@ L1S1 = table2array(T(2:end-1,13));
 
 figure,
 polarplot([deg2rad(hue_angle),deg2rad(hue_angle(1))],...
-    [L3S1',L3S1(1)],'k','DisplayName','L3S1')
+    [L3S1',L3S1(1)],'ko-','DisplayName','L3S1')
 hold on
 
 polarplot([deg2rad(hue_angle),deg2rad(hue_angle(1))],...
-    [L3S3',L3S3(1)],'k:','DisplayName','L3S3')
+    [L3S3',L3S3(1)],'ko:','DisplayName','L3S3')
 
 polarplot([deg2rad(hue_angle),deg2rad(hue_angle(1))],...
-    [L1S1',L1S1(1)],'k--','DisplayName','L1S1')
+    [L1S1',L1S1(1)],'ko--','DisplayName','L1S1')
 
 legend('AutoUpdate','off')
 
@@ -36,6 +36,10 @@ title('Report as a function of CIELAB hue angle')
 %% DKL
 
 load('DKLsubset.mat', 'DKLsubset')
+
+DKL_L3S1 = DKLsubset(:,:,73,32);
+DKL_L3S3 = DKLsubset(:,:,73,52);
+DKL_L1S1 = DKLsubset(:,:,53,32);
 
 % DKL_L3S1 = [-0.856476597173577	-0.937278812544493	-0.928213781150367	-0.895139653946265	-1.03364836782582	-0.852719027448376	-1.11053102337354	-1.12948498155823	-0.940685221634920
 % 0.0578819018756198	0.0589601427455918	0.0275326482784112	-0.0183270573549438	-0.0377142960052881	-0.0557364967490240	-0.0229625523307020	0.0124652479093524	-0.00527754014345971
